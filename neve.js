@@ -9,8 +9,9 @@ let messageTimer = 0;
 
 let messages = [
   "i think you're holding the heart of mine ...",
-  "then squeeze it to parts, that's fine.",
+  "squeeze it to parts, that's fine.",
   "happy birthday Yusraliza :)"
+  "love you :p"
 ];
 
 let backgroundColor = [5, 5, 20];
@@ -22,7 +23,7 @@ function preload() {
 }
 
 function setup() {
-  createCanvas(windowWidth, windowHeight); // Use full screen
+  createCanvas(windowWidth, windowHeight); // Use window dimensions for responsive design
   center = createVector(width / 2, height / 2);
   textFont(font);
   textAlign(CENTER, CENTER);
@@ -50,7 +51,7 @@ function setup() {
   fontGraphics.pixelDensity(1);
   fontGraphics.background(0);
   fontGraphics.textFont(font);
-  fontGraphics.textSize(200);
+  fontGraphics.textSize(width / 10); // Scale the font size based on screen width
   fontGraphics.fill(255);
   fontGraphics.textAlign(CENTER, CENTER);
   fontGraphics.text("NEVE", width / 2, height / 5);  // Adjusted position higher
@@ -149,7 +150,7 @@ function showTimedMessages() {
   }
 
   fill(255, alpha);
-  textSize(24);
+  textSize(width / 30);  // Adjust message size based on screen width
   text(messages[stage], width / 2, height - 250);  // Raised position for messages
 }
 
@@ -271,4 +272,9 @@ function drawGlowingCore() {
   }
 
   pop();
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+  center.set(width / 2, height / 2);
 }
