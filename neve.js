@@ -22,7 +22,7 @@ function preload() {
 }
 
 function setup() {
-  createCanvas(800, 800);
+  createCanvas(windowWidth, windowHeight); // Use full screen
   center = createVector(width / 2, height / 2);
   textFont(font);
   textAlign(CENTER, CENTER);
