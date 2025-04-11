@@ -9,8 +9,9 @@ let messageTimer = 0;
 
 let messages = [
   "i think you're holding the heart of mine ...",
-  "then squeeze it to parts, that's fine.",
-  "happy birthday Yusraliza :)"
+  "squeeze it to parts, that's fine.",
+  "happy birthday Yusraliza"
+  "love you :P"
 ];
 
 let backgroundColor = [5, 5, 20];
