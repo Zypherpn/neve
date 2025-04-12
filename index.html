@@ -1,12 +1,342 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Neve's Special Birthday Art</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+  <style>
+    * { 
+      margin: 0; 
+      padding: 0; 
+      box-sizing: border-box;
+    }
+    body { 
+      overflow: hidden; 
+      background: #000; 
+    }
+    canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+    }
+  </style>
 </head>
 <body>
-    <script src="neve.js"></script> <!-- This links your p5.js code -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+  <script>
+let particles = [];
+let center;
+let phase = "orbit"; // phases: orbit → collapse → explode → formText → message
+let phaseTimer = 0;
+let fontGraphics;
+let textTargets = [];
+let font;
+let messageTimer = 0;
+let messages = [
+    "i think you're holding the heart of mine ...",
+    "squeeze it to parts, that's fine.",
+    "happy birthday Yusraliza",
+    "love you :P"
+];
+
+let backgroundColor = [5, 5, 20];
+let starField = [];
+let comets = [];
+const STAR_COUNT = 800;
+
+// Array for blue orbiting planets
+let bluePlanets = [];
+
+function preload() {
+    font = loadFont("https://cdnjs.cloudflare.com/ajax/libs/topcoat/0.8.0/font/SourceCodePro-Regular.otf");
+}
+
+function setup() {
+    createCanvas(windowWidth, windowHeight);
+    center = createVector(width/2, height/2);
+    textFont(font);
+    textAlign(CENTER, CENTER);
+    
+    // Initialize stars
+    for (let i = 0; i < STAR_COUNT; i++) {
+        starField.push({
+            pos: createVector(random(width), random(height)),
+            size: random(1, 3),
+            alpha: random(100, 200)
+        });
+    }
+    
+    // Initialize comets
+    for (let i = 0; i < 3; i++) comets.push(createComet());
+    
+    // Create main particles (which will later explode)
+    createParticles();
+    // Prepare the text targets for "NEVE"
+    prepareTextTargets();
+    // Create blue orbiting planets (will orbit near the core)
+    createBluePlanets();
+    
+    phaseTimer = millis();
+}
+
+function createParticles() {
+    particles = [];
+    let baseRadius = min(width, height) * 0.2;
+    for (let i = 0; i < 500; i++) {
+        let angle = random(TWO_PI);
+        let radius = random(baseRadius * 0.8, baseRadius * 1.2);
+        let pos = p5.Vector.fromAngle(angle).mult(radius).add(center);
+        let vel = createVector(-(pos.y - center.y), pos.x - center.x).setMag(1);
+        particles.push(new Particle(pos, vel));
+    }
+}
+
+function prepareTextTargets() {
+    fontGraphics = createGraphics(width, height);
+    fontGraphics.pixelDensity(1);
+    fontGraphics.background(0);
+    fontGraphics.textFont(font);
+    fontGraphics.textSize(200);
+    fontGraphics.fill(255);
+    fontGraphics.textAlign(CENTER, CENTER);
+    // Place "NEVE" at the top center (as originally)
+    fontGraphics.text("NEVE", width/2, height/5);
+    
+    fontGraphics.loadPixels();
+    textTargets = [];
+    for (let x = 0; x < width; x += 6) {
+        for (let y = 0; y < height; y += 6) {
+            let index = (x + y * width) * 4;
+            if (fontGraphics.pixels[index] > 128) {
+                textTargets.push(createVector(x, y));
+            }
+        }
+    }
+    shuffle(textTargets, true);
+}
+
+function createBluePlanets() {
+    bluePlanets = [];
+    // Set a smaller orbit radius so that the blue planets are very close to the core
+    let orbitRadius = min(width, height) * 0.12; 
+    let planetCount = 4;
+    for (let i = 0; i < planetCount; i++) {
+        let angle = map(i, 0, planetCount, 0, TWO_PI);
+        let pos = createVector(cos(angle) * orbitRadius + center.x,
+                               sin(angle) * orbitRadius + center.y);
+        // Make them very small
+        let size = min(width, height) / 80;
+        bluePlanets.push({ pos, size, angle, orbitRadius });
+    }
+}
+
+function drawBluePlanets() {
+    let orbitSpeed = 0.0015;  // Slower orbit speed for smooth motion
+    // Fade factor: if core is exploding or messages phase, fade them out fast
+    let fadeFactor = 1;
+    if (phase === "explode" || phase === "message") {
+         fadeFactor = map(millis() - phaseTimer, 0, 1000, 1, 0);
+         fadeFactor = constrain(fadeFactor, 0, 1);
+    }
+    bluePlanets.forEach(bp => {
+        bp.angle += orbitSpeed;
+        bp.pos.x = cos(bp.angle) * bp.orbitRadius + center.x;
+        bp.pos.y = sin(bp.angle) * bp.orbitRadius + center.y;
+        // Use a light blue color similar to the core, multiplied by fade factor
+        fill(150, 200, 255, 180 * fadeFactor);
+        noStroke();
+        ellipse(bp.pos.x, bp.pos.y, bp.size);
+    });
+}
+
+function draw() {
+    background(...backgroundColor);
+    
+    // Draw stars
+    for (let star of starField) {
+        fill(255, 255, 255, star.alpha * noise(frameCount * 0.1 + star.pos.x));
+        noStroke();
+        ellipse(star.pos.x, star.pos.y, star.size);
+    }
+    
+    // Background color transitions
+    backgroundColor[0] = map(sin(millis() * 0.0001), -1, 1, 0, 20);
+    backgroundColor[1] = map(sin(millis() * 0.0001), -1, 1, 0, 20);
+    backgroundColor[2] = map(sin(millis() * 0.0001 + 1), -1, 1, 10, 30);
+    
+    // Update and draw comets
+    comets.forEach(comet => {
+        comet.update();
+        comet.show();
+    });
+    
+    handlePhaseTransitions();
+    
+    // Update and draw main particles
+    particles.forEach(p => {
+        p.update(phase);
+        p.show();
+    });
+    
+    // Draw blue orbiting planets around the core
+    drawBluePlanets();
+    
+    // Draw the glowing core if not exploding
+    if (phase !== "explode") {
+        drawGlowingCore();
+    }
+    
+    // Show timed messages under the core during the "message" phase
+    if (phase === "message") {
+        showTimedMessages();
+    }
+}
+
+function handlePhaseTransitions() {
+    let elapsed = millis() - phaseTimer;
+    const phases = {
+        orbit: { next: "collapse", delay: 4000 },
+        collapse: { next: "explode", delay: 3000 },
+        explode: { next: "formText", delay: 3000 },
+        formText: { next: "message", delay: 5000 }
+    };
+    if (phases[phase] && elapsed > phases[phase].delay) {
+        phase = phases[phase].next;
+        phaseTimer = millis();
+        if (phase === "formText") assignTargets();
+        if (phase === "message") messageTimer = millis();
+    }
+}
+
+function assignTargets() {
+    for (let i = 0; i < particles.length; i++) {
+        if (i < textTargets.length) {
+            particles[i].target = textTargets[i].copy();
+        }
+    }
+}
+
+function showTimedMessages() {
+    let t = (millis() - messageTimer) / 1000;
+    let stageDuration = 3;
+    let fadeDuration = 1;
+    let stage = floor(t / stageDuration);
+    let localTime = t % stageDuration;
+    
+    if (stage >= messages.length) {
+        triggerExplosion();
+        return;
+    }
+    
+    let alpha = 255;
+    if (localTime < fadeDuration) {
+        alpha = map(localTime, 0, fadeDuration, 0, 255);
+    } else if (localTime > stageDuration - fadeDuration) {
+        alpha = map(localTime, stageDuration - fadeDuration, stageDuration, 255, 0);
+    }
+    
+    fill(255, alpha);
+    textSize(min(width, height) / 20);
+    // Position the message directly under the glowing core
+    text(messages[stage], width/2, center.y + min(width, height) * 0.3);
+}
+
+function triggerExplosion() {
+    particles.forEach(p => {
+        p.vel.add(p5.Vector.random2D().mult(5));
+    });
+}
+
+class Particle {
+    constructor(pos, vel) {
+        this.pos = pos.copy();
+        this.vel = vel.copy();
+        this.acc = createVector(0, 0);
+        this.color = color(random(180,255), random(100,200), random(200,255));
+        this.size = random(1,3);
+        this.target = null;
+    }
+    update(phase) {
+        this.acc.set(0, 0);
+        if (phase === "collapse") {
+            let force = p5.Vector.sub(center, this.pos);
+            let d = force.mag();
+            force.setMag(5/(d*d));
+            this.acc.add(force);
+        } else if (phase === "explode") {
+            let force = p5.Vector.sub(this.pos, center);
+            let d = force.mag();
+            force.setMag(20/(d*d));
+            this.acc.add(force);
+        } else if (phase === "formText" && this.target) {
+            let force = p5.Vector.sub(this.target, this.pos);
+            force.mult(0.05);
+            this.acc.add(force);
+            this.vel.mult(0.9);
+        }
+        this.vel.add(this.acc);
+        this.pos.add(this.vel);
+    }
+    show() {
+        fill(this.color);
+        circle(this.pos.x, this.pos.y, this.size);
+    }
+}
+
+function createComet() {
+    return new Comet(
+        random(width),
+        random(height),
+        createVector(random(-1,1), random(-1,1)).mult(2),
+        random(4,8)
+    );
+}
+
+class Comet {
+    constructor(x, y, vel, size) {
+        this.pos = createVector(x, y);
+        this.vel = vel;
+        this.size = size;
+        this.tail = [];
+    }
+    update() {
+        this.pos.add(this.vel);
+        this.tail.push(this.pos.copy());
+        if (this.tail.length > 30) this.tail.shift();
+        if (this.pos.x > width) this.pos.x = 0;
+        if (this.pos.x < 0) this.pos.x = width;
+        if (this.pos.y > height) this.pos.y = 0;
+        if (this.pos.y < 0) this.pos.y = height;
+    }
+    show() {
+        for (let i = 0; i < this.tail.length; i++) {
+            let alpha = map(i, 0, this.tail.length, 0, 255);
+            fill(255, 255, 255, alpha);
+            noStroke();
+            ellipse(this.tail[i].x, this.tail[i].y, this.size);
+        }
+    }
+}
+
+function drawGlowingCore() {
+    push();
+    translate(center.x, center.y);
+    let baseSize = min(width, height) * 0.15;
+    for (let r = baseSize*2; r > 0; r -= 5) {
+        fill(80, 120, 255, map(r, baseSize*2, 0, 0, 50));
+        ellipse(0, 0, r);
+    }
+    fill(160, 200, 255, 200);
+    ellipse(0, 0, baseSize * 0.3 + sin(millis() * 0.005)* baseSize * 0.1);
+    pop();
+}
+
+function windowResized() {
+    resizeCanvas(windowWidth, windowHeight);
+    center.set(width/2, height/2);
+    createParticles();
+    prepareTextTargets();
+    comets = [];
+    for (let i = 0; i < 3; i++) comets.push(createComet());
+    createBluePlanets();
+}
+  </script>
 </body>
 </html>
